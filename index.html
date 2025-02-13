@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shooting Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white relative overflow-hidden">
+
+    <!-- Score & Timer Panel -->
+    <div class="absolute top-4 left-4 text-xl font-bold">
+        🏆 High Score: <span id="high-score">0</span> <br>
+        🎯 Score: <span id="score">0</span> <br>
+        ⏳ Time Left: <span id="timer">120</span>s
+    </div>
+
+    <!-- Game Container -->
+    <div id="game-container" class="relative w-[500px] h-[600px] bg-gray-800 rounded-lg border-4 border-gray-700 overflow-hidden">
+        <!-- Player -->
+        <div id="player" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-14 h-14 bg-blue-500 rounded-lg"></div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over" class="hidden fixed top-0 left-0 w-full h-full bg-gray-900 bg-opacity-90 flex flex-col items-center justify-center text-center text-white">
+        <h1 class="text-4xl font-bold mb-4">Game Over</h1>
+        <p class="text-xl">Your Score: <span id="final-score">0</span></p>
+        <p class="text-xl">🏆 High Score: <span id="final-high-score">0</span></p>
+        <button onclick="restartGame()" class="mt-4 px-6 py-2 bg-blue-500 text-white font-bold rounded-lg">Restart</button>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById("game-container");
+        const player = document.getElementById("player");
+        const scoreDisplay = document.getElementById("score");
+        const highScoreDisplay = document.getElementById("high-score");
+        const timerDisplay = document.getElementById("timer");
+        const gameOverScreen = document.getElementById("game-over");
+        const finalScoreDisplay = document.getElementById("final-score");
+        const finalHighScoreDisplay = document.getElementById("final-high-score");
+
+        let playerX = 225;
+        let bullets = [];
+        let enemies = [];
+        let score = 0;
+        let highScore = localStorage.getItem("highScore") || 0;
+        let timeLeft = 120;
+        let gameRunning = true;
+
+        highScoreDisplay.textContent = highScore;
+
+        // Move player
+        document.addEventListener("keydown", (event) => {
+            if (!gameRunning) return;
+            if (event.key === "ArrowLeft" && playerX > 10) {
+                playerX -= 20;
+            } else if (event.key === "ArrowRight" && playerX < 460) {
+                playerX += 20;
+            }
+            player.style.left = `${playerX}px`;
+        });
+
+        // Shoot bullets
+        document.addEventListener("keydown", (event) => {
+            if (!gameRunning) return;
+            if (event.key === " " || event.key === "Spacebar") {
+                let bullet = document.createElement("div");
+                bullet.className = "absolute w-3 h-6 bg-yellow-400 rounded-md";
+                bullet.style.left = `${playerX + 20}px`;
+                bullet.style.bottom = "60px";
+                gameContainer.appendChild(bullet);
+                bullets.push(bullet);
+            }
+        });
+
+        // Spawn enemies
+        function spawnEnemy() {
+            if (!gameRunning) return;
+            let enemy = document.createElement("div");
+            enemy.className = "absolute w-12 h-12 bg-red-500 rounded-full";
+            enemy.style.left = `${Math.random() * 450}px`;
+            enemy.style.top = "0px";
+            gameContainer.appendChild(enemy);
+            enemies.push(enemy);
+        }
+
+        setInterval(spawnEnemy, 1500);
+
+        // Game Loop
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            bullets.forEach((bullet, index) => {
+                let bulletY = parseInt(bullet.style.bottom);
+                if (bulletY > 580) {
+                    bullet.remove();
+                    bullets.splice(index, 1);
+                } else {
+                    bullet.style.bottom = `${bulletY + 10}px`;
+                }
+            });
+
+            enemies.forEach((enemy, index) => {
+                let enemyY = parseInt(enemy.style.top);
+                if (enemyY > 580) {
+                    enemy.remove();
+                    enemies.splice(index, 1);
+                } else {
+                    enemy.style.top = `${enemyY + 5}px`;
+                }
+
+                // Collision detection
+                bullets.forEach((bullet, bIndex) => {
+                    let bulletRect = bullet.getBoundingClientRect();
+                    let enemyRect = enemy.getBoundingClientRect();
+
+                    if (
+                        bulletRect.left < enemyRect.right &&
+                        bulletRect.right > enemyRect.left &&
+                        bulletRect.top < enemyRect.bottom &&
+                        bulletRect.bottom > enemyRect.top
+                    ) {
+                        enemy.remove();
+                        bullet.remove();
+                        enemies.splice(index, 1);
+                        bullets.splice(bIndex, 1);
+                        score += 10;
+                        scoreDisplay.textContent = score;
+                    }
+                });
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+
+        // Timer Function
+        function updateTimer() {
+            if (!gameRunning) return;
+            timeLeft--;
+            timerDisplay.textContent = timeLeft;
+
+            if (timeLeft <= 0) {
+                endGame();
+            } else {
+                setTimeout(updateTimer, 1000);
+            }
+        }
+
+        updateTimer();
+
+        // End Game Function
+        function endGame() {
+            gameRunning = false;
+            gameOverScreen.classList.remove("hidden");
+            finalScoreDisplay.textContent = score;
+            finalHighScoreDisplay.textContent = highScore;
+
+            // Update High Score
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem("highScore", highScore);
+                highScoreDisplay.textContent = highScore;
+                finalHighScoreDisplay.textContent = highScore;
+            }
+        }
+
+        // Restart Game
+        function restartGame() {
+            score = 0;
+            timeLeft = 120;
+            gameRunning = true;
+            scoreDisplay.textContent = score;
+            timerDisplay.textContent = timeLeft;
+            gameOverScreen.classList.add("hidden");
+
+            // Remove all enemies and bullets
+            enemies.forEach((enemy) => enemy.remove());
+            bullets.forEach((bullet) => bullet.remove());
+            enemies = [];
+            bullets = [];
+
+            gameLoop();
+            updateTimer();
+        }
+    </script>
+</body>
+</html>
