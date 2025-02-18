@@ -1,4 +1,4 @@
-# cyberv-shot
+# cyber-shot
 
 ## Description
 cyberv-shot is a project built with HTML. The purpose of this project is to [provide a brief description of what the project does].
